@@ -1,0 +1,84 @@
+#[derive(PartialEq, Copy, Clone)]
+struct Node {
+    qlast: u16,
+    qnext: u16,
+}
+
+struct Plist {
+    processes: [Option<Node>; 100],
+    size: u16,
+}
+
+fn main() -> Result<(), &'static str>{
+    let mut processes = Plist::init();
+    processes.create(1);
+    processes.create(3);
+    processes.create(2);
+
+    let mut i = 0;
+    for _ in processes.processes {
+        println!("PROCESS {i}");
+        i += 1;
+    }
+    Ok(())
+}
+
+impl Node {
+    fn new(last: u16, next: u16) -> Self {
+        Self {
+            qlast: last,
+            qnext: next,
+        }
+    }
+}
+
+impl Plist {
+   fn init() -> Self {
+        Self {
+            processes: [None; 100],
+            size: 100,
+        }
+   }
+   fn create(&mut self, uid: u32) -> Result<(), &'static str> {
+        if uid >= self.size {
+            return Err("ERROR: UID IS OUT OF BOUNDS");
+        }
+
+        if self.processes[uid as usize] != None {
+            return Err("ERROR: PROCESS WITH THAT PID ALREADY EXISTS");
+        }
+
+        let mut last: Option<u16> = None;
+        let mut next: Option<u16> = None;
+        let mut i: u16 = 0;
+
+        for (i, pid) in self.processes.iter().enumerate() {
+            if let Some(_) = pid {
+                if i < pid {
+                    last = Some(i)
+                } else if i > uid && next.is_none() {
+                    next = Some(i)
+                }
+            }
+        }
+        
+        if let Some(last_idx) = last {
+            if let Some(ref mut node) = self.processes[last_idx] {
+                node.qnext = uid as u16
+            }
+        }
+
+        if let Some(next_idx) = next {
+            if let Some(ref mut node) = self.processes[next_idx] {
+                node.qlast = uid as u16
+            }
+        }
+      
+        self.processes[uid] = Some(Node::new(
+            last.unwrap_or(uid) as u16,
+            next.unwrap_or(uid) as u16,
+        ));
+      
+        Ok(())
+   }
+}

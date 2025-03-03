@@ -1,11 +1,13 @@
 use std::env;
 #[derive(PartialEq, Copy, Clone)]
-struct Node {                       // SIZE 2.4mb
+struct Node {
+    // SIZE 2.4mb
     qlast: u16,
     qnext: u16,
 }
 
-struct Plist {                      // SIZE 3.6mb
+struct Plist {
+    // SIZE 3.6mb
     processes: [Option<Node>; 100], // SIZE 3.2mb [4bytes * 100]
     size: u16,                      // SIZE 2 bytes
     count: u16,                     // SIZE 2 bytes
@@ -13,16 +15,19 @@ struct Plist {                      // SIZE 3.6mb
 
 fn main() -> Result<(), &'static str> {
     let mut processes = Plist::init();
+    processes.create(9)?;
+    processes.create(90)?;
+    processes.create(99)?;
     let args: Vec<String> = env::args().collect(); // ARG [1] is function, args[2] is uid
-    if args.len() < 3 {
-        return Err("ERROR: NOT ENOUGH ARGUMENTS")
+    if args.len() < 2 {
+        return Err("ERROR: NOT ENOUGH ARGUMENTS");
     }
     if args.len() > 3 {
-        return Err("ERROR: TOO MANY ARGUMENTS")
+        return Err("ERROR: TOO MANY ARGUMENTS");
     }
     let uid: u16 = match args[2].parse() {
         Ok(num) => num,
-        Err(_) => return Err("ERROR: UID IS NOT A NUMBER"),
+        Err(_) => u16::MAX,
     };
     if uid > 99 {
         return Err("ERROR: UID IS OUT OF BOUNDS");
@@ -39,12 +44,16 @@ fn main() -> Result<(), &'static str> {
         }
         "get" => {
             let node = processes.get(uid)?;
-            println!("PROCESS {} -> qlast: {}, qnext: {}", uid, node.qlast, node.qnext);
+            println!(
+                "PROCESS {} -> qlast: {}, qnext: {}",
+                uid, node.qlast, node.qnext
+            );
         }
         _ => {
             return Err("ERROR: INVALID FUNCTION");
         }
     }
+    processes.running();
     Ok(())
 }
 
@@ -58,14 +67,14 @@ impl Node {
 }
 
 impl Plist {
-   fn init() -> Self {
+    fn init() -> Self {
         Self {
             processes: [None; 100],
             size: 100,
             count: 0,
         }
-   }
-   fn create(&mut self, uid: u16) -> Result<(), &'static str> {
+    }
+    fn create(&mut self, uid: u16) -> Result<(), &'static str> {
         let mut last: Option<u16> = None;
         let mut next: Option<u16> = None;
 
@@ -109,8 +118,8 @@ impl Plist {
         ));
         self.count += 1;
         Ok(())
-   }
-   fn kill(&mut self, uid: u16) -> Result<(), &'static str> {
+    }
+    fn kill(&mut self, uid: u16) -> Result<(), &'static str> {
         if self.count == 0 {
             return Err("ERROR: PROCESS LIST IS EMPTY");
         }
@@ -129,29 +138,34 @@ impl Plist {
                 node.qlast = left;
             }
             _ => return Err("ERROR: RIGHT NODE DOES NOT EXIST"),
-            
         }
         self.processes[uid as usize] = None;
         self.count -= 1;
         Ok(())
-   }
-   fn get(&self, uid: u16) -> Result<Node, &'static str> {
+    }
+    fn get(&self, uid: u16) -> Result<Node, &'static str> {
         match self.processes[uid as usize] {
             Some(ref node) => Ok(*node),
             _ => Err("ERROR: PROCESS WITH THAT PID DOES NOT EXIST"),
         }
-   }
-   fn running(&self) {
+    }
+    fn running(&self) {
         let mut i = 0;
         for pid in self.processes {
+            if self.count == 0 {
+                println!("NO ACTIVE PROCESSES");
+                return;
+            }
             match pid {
                 Some(node) => {
-                    println!("PROCESS {i} -> qlast: {}, qnext: {}", node.qlast, node.qnext);
+                    println!(
+                        "PROCESS {i} -> qlast: {}, qnext: {}",
+                        node.qlast, node.qnext
+                    );
                 }
-                None => {
-                }
+                None => {}
             }
             i += 1;
         }
-   }
+    }
 }
